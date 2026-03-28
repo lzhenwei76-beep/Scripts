@@ -1,13 +1,5 @@
-// ==UserScript==
-// @name         Slither.io Hack Pro
-// @namespace    http://tampermonkey.net/
-// @version      2.0
-// @description   Slither.io Hack - Zoom, Map, Speed, Auto-Play, Unsterblich
-// @author       lzhenwei
-// @match        https://slither.io/*
-// @match        http://slither.io/*
-// @grant        none
-// ==/UserScript==
+// ========== SLITHER.IO HACK - CONSOLE VERSION ==========
+// Füge diesen Code in die Konsole (F12) ein
 
 (function() {
     'use strict';
@@ -19,7 +11,8 @@
         speed: false,
         autoPlay: false,
         immortal: false,
-        noClip: false
+        noClip: false,
+        aimBot: false
     };
     
     let speedMultiplier = 2;
@@ -29,47 +22,48 @@
     let panel = null;
     let content = null;
     let header = null;
+    let mapCanvas = null;
     let infoBox = null;
-    
-    // ========== SNAKE REFERENZ ==========
-    let snake = null;
-    
+
+    // ========== SNAKE REFERENZ FINDEN ==========
     function getSnake() {
+        // Verschiedene mögliche Variablen in Slither.io
         if (typeof window.snake !== 'undefined') return window.snake;
         if (typeof window.mySnake !== 'undefined') return window.mySnake;
         if (typeof window.s !== 'undefined') return window.s;
+        if (typeof window.player !== 'undefined') return window.player;
+        
+        // Suche im globalen Scope
+        for (let key in window) {
+            if (window[key] && window[key].xx !== undefined && window[key].yy !== undefined) {
+                return window[key];
+            }
+        }
         return null;
     }
-    
+
     // ========== ZOOM HACK ==========
     function toggleZoom() {
         hackStates.zoom = !hackStates.zoom;
         if (hackStates.zoom) {
-            // Zoom out
-            if (typeof window.gameCanvas !== 'undefined') {
-                window.gameCanvas.style.transform = 'scale(0.5)';
-                window.gameCanvas.style.transformOrigin = 'top left';
-            }
-            document.body.style.zoom = '0.5';
-            console.log('🔍 ZOOM OUT AKTIVIERT');
+            document.body.style.transform = 'scale(0.6)';
+            document.body.style.transformOrigin = 'top left';
+            document.body.style.width = '166%';
+            console.log('🔍 ZOOM OUT AKTIVIERT (60%)');
         } else {
-            if (typeof window.gameCanvas !== 'undefined') {
-                window.gameCanvas.style.transform = 'scale(1)';
-            }
-            document.body.style.zoom = '1';
+            document.body.style.transform = '';
+            document.body.style.transformOrigin = '';
+            document.body.style.width = '';
             console.log('🔍 ZOOM OUT DEAKTIVIERT');
         }
         updateButtons();
     }
-    
+
     // ========== MAP HACK (Übersichtskarte) ==========
-    let mapCanvas = null;
-    
     function toggleMap() {
         hackStates.map = !hackStates.map;
         
         if (hackStates.map) {
-            // Erstelle Übersichtskarte
             mapCanvas = document.createElement('canvas');
             mapCanvas.id = 'slither-map';
             mapCanvas.style.cssText = `
@@ -77,58 +71,65 @@
                 bottom: 20px;
                 left: 20px;
                 z-index: 99999;
-                width: 200px;
-                height: 200px;
-                background: rgba(0,0,0,0.7);
+                width: 180px;
+                height: 180px;
+                background: rgba(0,0,0,0.75);
                 border: 2px solid #e94560;
                 border-radius: 8px;
                 pointer-events: none;
+                font-family: monospace;
             `;
             document.body.appendChild(mapCanvas);
             
-            // Karte updaten
             function updateMap() {
-                if (!hackStates.map) return;
+                if (!hackStates.map || !mapCanvas) return;
                 let ctx = mapCanvas.getContext('2d');
-                ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                ctx.fillRect(0, 0, 200, 200);
+                ctx.fillStyle = 'rgba(0,0,0,0.75)';
+                ctx.fillRect(0, 0, 180, 180);
                 ctx.fillStyle = '#e94560';
-                ctx.font = '12px monospace';
-                ctx.fillText('🐍 MAP VIEW', 10, 20);
+                ctx.font = '10px monospace';
+                ctx.fillText('🐍 MAP VIEW', 10, 18);
                 
-                // Zeige Spieler-Position
                 let s = getSnake();
-                if (s && s.xx !== undefined) {
+                if (s && s.xx !== undefined && s.yy !== undefined) {
                     ctx.fillStyle = '#00ff00';
                     ctx.beginPath();
-                    ctx.arc(100 + s.xx / 100, 100 + s.yy / 100, 5, 0, Math.PI * 2);
+                    let x = 90 + (s.xx / 20);
+                    let y = 90 + (s.yy / 20);
+                    ctx.arc(Math.min(170, Math.max(10, x)), Math.min(170, Math.max(10, y)), 4, 0, Math.PI * 2);
                     ctx.fill();
+                    
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '8px monospace';
+                    ctx.fillText('🐍', x-3, y-4);
                 }
                 requestAnimationFrame(updateMap);
             }
             updateMap();
-            console.log('🗺️ MAP AKTIVIERT');
+            console.log('🗺️ MINI-MAP AKTIVIERT');
         } else {
             if (mapCanvas) mapCanvas.remove();
-            console.log('🗺️ MAP DEAKTIVIERT');
+            console.log('🗺️ MINI-MAP DEAKTIVIERT');
         }
         updateButtons();
     }
-    
+
     // ========== SPEED HACK ==========
     function toggleSpeed() {
         hackStates.speed = !hackStates.speed;
-        
         let s = getSnake();
+        
         if (s) {
             if (hackStates.speed) {
-                originalSpeed = s.spd || 10;
+                if (originalSpeed === null) originalSpeed = s.spd || 10;
                 s.spd = originalSpeed * speedMultiplier;
                 console.log(`⚡ SPEED HACK AKTIVIERT (${speedMultiplier}x)`);
             } else {
                 if (originalSpeed) s.spd = originalSpeed;
                 console.log('⚡ SPEED HACK DEAKTIVIERT');
             }
+        } else {
+            console.log('❌ Snake nicht gefunden');
         }
         updateButtons();
     }
@@ -146,50 +147,69 @@
             console.log(`⚡ Speed auf ${speedMultiplier}x gesetzt`);
         }
     }
-    
+
     // ========== AUTO-PLAY ==========
     function autoPlayMove() {
         let s = getSnake();
         if (!s || !hackStates.autoPlay) return;
         
         // Finde nächstes Essen
-        let foods = document.querySelectorAll('.food');
-        let closest = null;
-        let closestDist = Infinity;
+        let foods = [];
         
-        // Suche nach Essen im Canvas
-        if (typeof window.foods !== 'undefined') {
-            for (let f of window.foods) {
-                let dx = f.xx - s.xx;
-                let dy = f.yy - s.yy;
-                let dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < closestDist) {
-                    closestDist = dist;
-                    closest = f;
+        // Versuche verschiedene globale Variablen
+        if (typeof window.foods !== 'undefined') foods = window.foods;
+        if (typeof window.food !== 'undefined') foods = window.food;
+        if (typeof window.f !== 'undefined') foods = window.f;
+        
+        if (foods && foods.length > 0) {
+            let closest = null;
+            let closestDist = Infinity;
+            
+            for (let f of foods) {
+                if (f && f.xx !== undefined && f.yy !== undefined) {
+                    let dx = f.xx - s.xx;
+                    let dy = f.yy - s.yy;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closest = f;
+                    }
+                }
+            }
+            
+            if (closest) {
+                let angle = Math.atan2(closest.yy - s.yy, closest.xx - s.xx);
+                s.ang = angle;
+                
+                // Boosten wenn nah
+                if (closestDist < 150) {
+                    s.boost = true;
+                } else {
+                    s.boost = false;
                 }
             }
         }
         
-        if (closest) {
-            // Bewege zur nächsten Nahrung
-            let angle = Math.atan2(closest.yy - s.yy, closest.xx - s.xx);
-            s.ang = angle;
-            
-            // Boosten wenn nah
-            if (closestDist < 200 && hackStates.autoBoost) {
-                s.boost = true;
-            } else {
-                s.boost = false;
+        // Vermeide andere Schlangen
+        if (typeof window.snakes !== 'undefined') {
+            for (let other of window.snakes) {
+                if (other && other !== s && other.xx !== undefined) {
+                    let dx = other.xx - s.xx;
+                    let dy = other.yy - s.yy;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 80) {
+                        let angle = Math.atan2(s.yy - other.yy, s.xx - other.xx);
+                        s.ang = angle;
+                    }
+                }
             }
         }
         
         // Vermeide Wände
-        if (hackStates.avoidWalls) {
-            if (s.xx < 100) s.ang = 0;
-            if (s.xx > 1900) s.ang = Math.PI;
-            if (s.yy < 100) s.ang = Math.PI / 2;
-            if (s.yy > 1100) s.ang = -Math.PI / 2;
-        }
+        if (s.xx < 80) s.ang = 0;
+        if (s.xx > 1920) s.ang = Math.PI;
+        if (s.yy < 80) s.ang = Math.PI / 2;
+        if (s.yy > 1080) s.ang = -Math.PI / 2;
     }
     
     function toggleAutoPlay() {
@@ -197,52 +217,42 @@
         
         if (hackStates.autoPlay) {
             autoPlayInterval = setInterval(() => autoPlayMove(), 50);
-            console.log('🤖 AUTO-PLAY AKTIVIERT');
+            console.log('🤖 AUTO-PLAY AKTIVIERT (automatisch essen)');
         } else {
             if (autoPlayInterval) clearInterval(autoPlayInterval);
             console.log('🤖 AUTO-PLAY DEAKTIVIERT');
         }
         updateButtons();
     }
-    
-    // ========== UNSTERBLICH / NO CLIP ==========
+
+    // ========== UNSTERBLICH ==========
     function toggleImmortal() {
         hackStates.immortal = !hackStates.immortal;
         
         if (hackStates.immortal) {
             // Überschreibe Kollisionserkennung
+            if (typeof window.collision !== 'undefined') {
+                window.originalCollision = window.collision;
+                window.collision = () => false;
+            }
             if (typeof window.checkCollision !== 'undefined') {
-                window.originalCollision = window.checkCollision;
-                window.checkCollision = function() { return false; };
+                window.originalCheckCollision = window.checkCollision;
+                window.checkCollision = () => false;
             }
             console.log('💀 UNSTERBLICH AKTIVIERT');
         } else {
-            if (window.originalCollision) {
-                window.checkCollision = window.originalCollision;
-            }
+            if (window.originalCollision) window.collision = window.originalCollision;
+            if (window.originalCheckCollision) window.checkCollision = window.originalCheckCollision;
             console.log('💀 UNSTERBLICH DEAKTIVIERT');
         }
         updateButtons();
     }
-    
-    // ========== NO CLIP (Durch Wände) ==========
-    function toggleNoClip() {
-        hackStates.noClip = !hackStates.noClip;
-        
-        if (hackStates.noClip) {
-            console.log('🌀 NO CLIP AKTIVIERT');
-        } else {
-            console.log('🌀 NO CLIP DEAKTIVIERT');
-        }
-        updateButtons();
-    }
-    
+
     // ========== MASSEN-COMMANDS ==========
     function giveMass() {
         let s = getSnake();
         if (s) {
             s.mass = 5000;
-            s.spd = 10;
             console.log('🍎 MASSE AUF 5000 GESETZT');
         } else {
             console.log('❌ Snake nicht gefunden');
@@ -257,6 +267,14 @@
         }
     }
     
+    function setSize(value) {
+        let s = getSnake();
+        if (s) {
+            s.sz = parseFloat(value);
+            console.log(`📏 GRÖSSE AUF ${value} GESETZT`);
+        }
+    }
+
     // ========== INFO BOX ==========
     function showInfoBox() {
         if (infoBox) {
@@ -271,13 +289,13 @@
             bottom: 20px;
             right: 20px;
             z-index: 100000;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0,0,0,0.9);
             backdrop-filter: blur(8px);
             border-radius: 12px;
             padding: 12px 16px;
             max-width: 260px;
             font-family: monospace;
-            font-size: 11px;
+            font-size: 10px;
             color: #e0e0e0;
             border: 1px solid #e94560;
             animation: fadeInUp 0.2s ease;
@@ -289,80 +307,43 @@
                 from { opacity: 0; transform: translateY(10px); }
                 to { opacity: 1; transform: translateY(0); }
             }
+            @keyframes fadeOutDown {
+                from { opacity: 1; transform: translateY(0); }
+                to { opacity: 0; transform: translateY(10px); }
+            }
         `;
         document.head.appendChild(style);
         
-        let headerDiv = document.createElement('div');
-        headerDiv.style.cssText = `display: flex; justify-content: space-between; margin-bottom: 10px;`;
-        
-        let title = document.createElement('span');
-        title.innerHTML = '🐍 SLITHER.IO HACK 🐍';
-        title.style.cssText = `color: #e94560; font-weight: bold; font-size: 12px;`;
-        headerDiv.appendChild(title);
-        
-        let closeBtn = document.createElement('span');
-        closeBtn.innerHTML = '✕';
-        closeBtn.style.cssText = `cursor: pointer; color: #888; font-size: 14px;`;
-        closeBtn.onclick = () => { infoBox.remove(); infoBox = null; };
-        headerDiv.appendChild(closeBtn);
-        infoBox.appendChild(headerDiv);
-        
-        let author = document.createElement('div');
-        author.innerHTML = '✨ by <strong style="color:#e94560">lzhenwei</strong> ✨';
-        author.style.cssText = `text-align: center; font-size: 10px; margin-bottom: 10px;`;
-        infoBox.appendChild(author);
-        
-        let features = [
-            '🔍 Zoom Out - Mehr Übersicht',
-            '🗺️ Mini-Map - Position sehen',
-            '⚡ Speed Hack - Schneller sein',
-            '🤖 Auto-Play - Automatisch essen',
-            '💀 Unsterblich - Keine Kollision',
-            '🌀 No Clip - Durch Wände',
-            '🍎 Mass Command - Riesig werden'
-        ];
-        
-        let list = document.createElement('div');
-        list.style.cssText = `margin: 8px 0; line-height: 1.5;`;
-        features.forEach(f => {
-            let item = document.createElement('div');
-            item.textContent = f;
-            item.style.cssText = `font-size: 10px; color: #ccc; margin: 3px 0;`;
-            list.appendChild(item);
-        });
-        infoBox.appendChild(list);
-        
-        let hotkeys = document.createElement('div');
-        hotkeys.innerHTML = `⌨️ Z=Zoom | M=Map | S=Speed | P=Auto | I=God | N=NoClip | G=Mass | H=Info`;
-        hotkeys.style.cssText = `text-align: center; font-size: 8px; margin-top: 8px; color: #888;`;
-        infoBox.appendChild(hotkeys);
+        infoBox.innerHTML = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span style="color: #e94560; font-weight: bold;">🐍 SLITHER.IO HACK</span>
+                <span id="info-close" style="cursor: pointer; color: #888;">✕</span>
+            </div>
+            <div style="text-align: center; margin-bottom: 10px;">by <strong style="color:#e94560">lzhenwei</strong></div>
+            <div style="margin: 8px 0;">
+                <div>🔍 Z = Zoom Out</div>
+                <div>🗺️ M = Mini-Map</div>
+                <div>⚡ S = Speed Hack</div>
+                <div>🤖 P = Auto-Play</div>
+                <div>💀 I = Unsterblich</div>
+                <div>🍎 G = +5000 Masse</div>
+                <div>🔢 K = Speed Multiplier</div>
+                <div>❌ ESC = Stop Auto</div>
+            </div>
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #333; font-size: 9px; text-align: center;">
+                💡 KONSOLE: slither.mass(10000) | slither.size(50)
+            </div>
+        `;
         
         document.body.appendChild(infoBox);
+        document.getElementById('info-close').onclick = () => {
+            infoBox.style.animation = 'fadeOutDown 0.2s ease';
+            setTimeout(() => infoBox.remove(), 200);
+            infoBox = null;
+        };
     }
-    
-    // ========== GUI (KURZE BUTTONS) ==========
-    function togglePanel() {
-        if (!content) return;
-        if (panelVisible) {
-            content.style.maxHeight = '0';
-            content.style.opacity = '0';
-            content.style.padding = '0 8px';
-            setTimeout(() => content.style.display = 'none', 200);
-            if (header) { header.innerHTML = '▲'; header.style.background = '#e94560'; }
-        } else {
-            content.style.display = 'block';
-            content.style.maxHeight = '0';
-            content.style.opacity = '0';
-            setTimeout(() => {
-                content.style.maxHeight = '380px';
-                content.style.opacity = '1';
-                content.style.padding = '8px';
-            }, 10);
-            if (header) { header.innerHTML = '▼'; header.style.background = '#0f3460'; }
-        }
-        panelVisible = !panelVisible;
-    }
-    
+
+    // ========== GUI ERSTELLEN ==========
     function createGUI() {
         if (panel) panel.remove();
         
@@ -373,11 +354,11 @@
             right: 10px;
             z-index: 99999;
             background: #1a1a2e;
-            border-radius: 8px;
+            border-radius: 10px;
             font-family: monospace;
             border: 1px solid #e94560;
             width: 48px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             overflow: hidden;
             text-align: center;
         `;
@@ -385,29 +366,35 @@
         header = document.createElement('div');
         header.innerHTML = '▼';
         header.style.cssText = `
-            padding: 6px;
+            padding: 8px;
             text-align: center;
             background: #0f3460;
             color: white;
             font-weight: bold;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 14px;
         `;
-        header.onclick = togglePanel;
+        header.onclick = () => {
+            if (panelVisible) {
+                content.style.display = 'none';
+                header.innerHTML = '▲';
+                header.style.background = '#e94560';
+            } else {
+                content.style.display = 'block';
+                header.innerHTML = '▼';
+                header.style.background = '#0f3460';
+            }
+            panelVisible = !panelVisible;
+        };
         panel.appendChild(header);
         
         content = document.createElement('div');
-        content.style.cssText = `
-            padding: 8px;
-            transition: all 0.2s ease;
-            max-height: 380px;
-            overflow: hidden;
-        `;
+        content.style.cssText = `padding: 8px;`;
         
         let nameTag = document.createElement('div');
         nameTag.textContent = '🐍';
         nameTag.style.cssText = `
-            font-size: 16px;
+            font-size: 18px;
             color: #e94560;
             margin-bottom: 8px;
             cursor: pointer;
@@ -416,16 +403,16 @@
         nameTag.onclick = showInfoBox;
         content.appendChild(nameTag);
         
-        let btnStyle = `
+        let btnStyle = (active) => `
             width: 36px;
             height: 36px;
-            margin: 4px auto;
-            background: #0f3460;
+            margin: 5px auto;
+            background: ${active ? '#e94560' : '#0f3460'};
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -435,84 +422,48 @@
         let btnContainer = document.createElement('div');
         btnContainer.style.cssText = `display: flex; flex-direction: column; align-items: center; gap: 5px;`;
         
-        // Zoom Button
-        let zoomBtn = document.createElement('button');
-        zoomBtn.id = 'zoom-btn';
-        zoomBtn.textContent = '🔍';
-        zoomBtn.style.cssText = btnStyle;
-        zoomBtn.title = "Z - Zoom Out";
-        zoomBtn.onclick = toggleZoom;
-        btnContainer.appendChild(zoomBtn);
+        let buttons = [
+            { id: 'zoom-btn', icon: '🔍', action: toggleZoom, title: 'Zoom Out (Z)' },
+            { id: 'map-btn', icon: '🗺️', action: toggleMap, title: 'Mini-Map (M)' },
+            { id: 'speed-btn', icon: '⚡', action: toggleSpeed, title: 'Speed Hack (S)' },
+            { id: 'auto-btn', icon: '🤖', action: toggleAutoPlay, title: 'Auto-Play (P)' },
+            { id: 'immortal-btn', icon: '💀', action: toggleImmortal, title: 'Immortal (I)' },
+            { id: 'mass-btn', icon: '🍎', action: giveMass, title: 'Give Mass (G)' }
+        ];
         
-        // Map Button
-        let mapBtn = document.createElement('button');
-        mapBtn.id = 'map-btn';
-        mapBtn.textContent = '🗺️';
-        mapBtn.style.cssText = btnStyle;
-        mapBtn.title = "M - Mini Map";
-        mapBtn.onclick = toggleMap;
-        btnContainer.appendChild(mapBtn);
-        
-        // Speed Button
-        let speedBtn = document.createElement('button');
-        speedBtn.id = 'speed-btn';
-        speedBtn.textContent = '⚡';
-        speedBtn.style.cssText = btnStyle;
-        speedBtn.title = "S - Speed Hack";
-        speedBtn.onclick = toggleSpeed;
-        btnContainer.appendChild(speedBtn);
-        
-        // AutoPlay Button
-        let autoBtn = document.createElement('button');
-        autoBtn.id = 'auto-btn';
-        autoBtn.textContent = '🤖';
-        autoBtn.style.cssText = btnStyle;
-        autoBtn.title = "P - Auto Play";
-        autoBtn.onclick = toggleAutoPlay;
-        btnContainer.appendChild(autoBtn);
-        
-        // Immortal Button
-        let immortalBtn = document.createElement('button');
-        immortalBtn.id = 'immortal-btn';
-        immortalBtn.textContent = '💀';
-        immortalBtn.style.cssText = btnStyle;
-        immortalBtn.title = "I - Immortal";
-        immortalBtn.onclick = toggleImmortal;
-        btnContainer.appendChild(immortalBtn);
-        
-        // NoClip Button
-        let noclipBtn = document.createElement('button');
-        noclipBtn.id = 'noclip-btn';
-        noclipBtn.textContent = '🌀';
-        noclipBtn.style.cssText = btnStyle;
-        noclipBtn.title = "N - No Clip";
-        noclipBtn.onclick = toggleNoClip;
-        btnContainer.appendChild(noclipBtn);
-        
-        // Mass Button
-        let massBtn = document.createElement('button');
-        massBtn.textContent = '🍎';
-        massBtn.style.cssText = btnStyle;
-        massBtn.title = "G - Give Mass (5000)";
-        massBtn.onclick = giveMass;
-        btnContainer.appendChild(massBtn);
+        buttons.forEach(btn => {
+            let button = document.createElement('button');
+            button.id = btn.id;
+            button.textContent = btn.icon;
+            button.style.cssText = btnStyle(false);
+            button.title = btn.title;
+            button.onclick = btn.action;
+            btnContainer.appendChild(button);
+        });
         
         content.appendChild(btnContainer);
         panel.appendChild(content);
         document.body.appendChild(panel);
         
-        window.btns = { zoomBtn, mapBtn, speedBtn, autoBtn, immortalBtn, noclipBtn };
+        window.btns = {
+            zoomBtn: document.getElementById('zoom-btn'),
+            mapBtn: document.getElementById('map-btn'),
+            speedBtn: document.getElementById('speed-btn'),
+            autoBtn: document.getElementById('auto-btn'),
+            immortalBtn: document.getElementById('immortal-btn')
+        };
+        
+        panelVisible = true;
     }
     
     function updateButtons() {
         if (window.btns) {
-            let { zoomBtn, mapBtn, speedBtn, autoBtn, immortalBtn, noclipBtn } = window.btns;
+            let { zoomBtn, mapBtn, speedBtn, autoBtn, immortalBtn } = window.btns;
             if (zoomBtn) zoomBtn.style.background = hackStates.zoom ? '#e94560' : '#0f3460';
             if (mapBtn) mapBtn.style.background = hackStates.map ? '#e94560' : '#0f3460';
             if (speedBtn) speedBtn.style.background = hackStates.speed ? '#e94560' : '#0f3460';
             if (autoBtn) autoBtn.style.background = hackStates.autoPlay ? '#e94560' : '#0f3460';
             if (immortalBtn) immortalBtn.style.background = hackStates.immortal ? '#e94560' : '#0f3460';
-            if (noclipBtn) noclipBtn.style.background = hackStates.noClip ? '#e94560' : '#0f3460';
         }
     }
     
@@ -525,58 +476,60 @@
             case 's': e.preventDefault(); toggleSpeed(); break;
             case 'p': e.preventDefault(); toggleAutoPlay(); break;
             case 'i': e.preventDefault(); toggleImmortal(); break;
-            case 'n': e.preventDefault(); toggleNoClip(); break;
             case 'g': e.preventDefault(); giveMass(); break;
+            case 'k': e.preventDefault(); setSpeedMultiplier(); break;
             case 'h': e.preventDefault(); showInfoBox(); break;
             case 'escape': e.preventDefault(); 
                 if (autoPlayInterval) clearInterval(autoPlayInterval);
                 hackStates.autoPlay = false;
                 updateButtons();
+                console.log('🛑 Auto-Play gestoppt');
                 break;
         }
     }
     
     // ========== KONSOLE COMMANDS ==========
-    window.slitherHack = {
+    window.slither = {
         zoom: toggleZoom,
         map: toggleMap,
         speed: toggleSpeed,
         auto: toggleAutoPlay,
         immortal: toggleImmortal,
-        noclip: toggleNoClip,
-        mass: giveMass,
-        setMass: setMass,
-        info: showInfoBox,
-        speedMultiplier: setSpeedMultiplier
+        mass: setMass,
+        give: giveMass,
+        size: setSize,
+        speedMult: setSpeedMultiplier,
+        info: showInfoBox
     };
     
     // ========== INIT ==========
     function init() {
-        // Warte auf Spiel-Load
-        let check = setInterval(() => {
-            let s = getSnake();
-            if (s || document.querySelector('#canvas')) {
-                clearInterval(check);
-                createGUI();
-                window.addEventListener('keydown', handleKeys);
-                console.log('%c🐍 SLITHER.IO HACK GELADEN | lzhenwei 🐍', 'color: #e94560; font-size: 14px; font-weight: bold;');
-                console.log('');
-                console.log('📌 HOTKEYS:');
-                console.log('   Z = Zoom Out');
-                console.log('   M = Mini-Map');
-                console.log('   S = Speed Hack');
-                console.log('   P = Auto-Play');
-                console.log('   I = Unsterblich');
-                console.log('   N = No Clip');
-                console.log('   G = +5000 Masse');
-                console.log('   H = Info');
-                console.log('');
-                console.log('💡 KONSOLE COMMANDS: slitherHack.mass() / slitherHack.setMass(10000)');
-            }
-        }, 1000);
+        createGUI();
+        window.addEventListener('keydown', handleKeys);
+        
+        console.log('%c🐍 SLITHER.IO HACK GELADEN | by lzhenwei 🐍', 'color: #e94560; font-size: 14px; font-weight: bold;');
+        console.log('');
+        console.log('📌 HOTKEYS:');
+        console.log('   Z = Zoom Out');
+        console.log('   M = Mini-Map');
+        console.log('   S = Speed Hack');
+        console.log('   P = Auto-Play (automatisch essen)');
+        console.log('   I = Unsterblich');
+        console.log('   G = +5000 Masse');
+        console.log('   K = Speed Multiplier ändern');
+        console.log('   H = Info');
+        console.log('   ESC = Auto-Play stoppen');
+        console.log('');
+        console.log('💡 KONSOLE COMMANDS:');
+        console.log('   slither.mass(10000)  → Masse setzen');
+        console.log('   slither.size(50)     → Größe setzen');
+        console.log('   slither.give()       → +5000 Masse');
+        console.log('   slither.speedMult()  → Speed ändern');
+        console.log('   slither.auto()       → Auto-Play togglen');
+        console.log('   slither.immortal()   → Unsterblich togglen');
+        console.log('   slither.info()       → Info anzeigen');
     }
     
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-    else init();
+    init();
     
 })();
