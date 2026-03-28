@@ -1,4 +1,4 @@
-// ========== SLITHER.IO HACK - CONSOLE VERSION ==========
+// ========== SLITHER.IO HACK - CSP KOMPATIBEL ==========
 // Füge diesen Code in die Konsole (F12) ein
 
 (function() {
@@ -11,8 +11,7 @@
         speed: false,
         autoPlay: false,
         immortal: false,
-        noClip: false,
-        aimBot: false
+        noClip: false
     };
     
     let speedMultiplier = 2;
@@ -25,24 +24,33 @@
     let mapCanvas = null;
     let infoBox = null;
 
-    // ========== SNAKE REFERENZ FINDEN ==========
+    // ========== SNAKE REFERENZ FINDEN (OHNE EVAL) ==========
     function getSnake() {
-        // Verschiedene mögliche Variablen in Slither.io
-        if (typeof window.snake !== 'undefined') return window.snake;
-        if (typeof window.mySnake !== 'undefined') return window.mySnake;
-        if (typeof window.s !== 'undefined') return window.s;
-        if (typeof window.player !== 'undefined') return window.player;
+        // Direkte Referenzen
+        if (typeof window.snake !== 'undefined' && window.snake) return window.snake;
+        if (typeof window.mySnake !== 'undefined' && window.mySnake) return window.mySnake;
+        if (typeof window.s !== 'undefined' && window.s) return window.s;
+        if (typeof window.player !== 'undefined' && window.player) return window.player;
         
-        // Suche im globalen Scope
+        // Suche im globalen Scope nach Objekten mit snake-typischen Eigenschaften
         for (let key in window) {
-            if (window[key] && window[key].xx !== undefined && window[key].yy !== undefined) {
-                return window[key];
-            }
+            try {
+                let obj = window[key];
+                if (obj && typeof obj === 'object') {
+                    // Typische Snake-Eigenschaften
+                    if ((obj.xx !== undefined || obj.x !== undefined) && 
+                        (obj.yy !== undefined || obj.y !== undefined) &&
+                        (obj.mass !== undefined || obj.sz !== undefined)) {
+                        console.log(`🐍 Snake gefunden unter: ${key}`);
+                        return obj;
+                    }
+                }
+            } catch(e) { /* Sicherheitshalber ignorieren */ }
         }
         return null;
     }
 
-    // ========== ZOOM HACK ==========
+    // ========== ZOOM HACK (Sicher) ==========
     function toggleZoom() {
         hackStates.zoom = !hackStates.zoom;
         if (hackStates.zoom) {
@@ -91,17 +99,20 @@
                 ctx.fillText('🐍 MAP VIEW', 10, 18);
                 
                 let s = getSnake();
-                if (s && s.xx !== undefined && s.yy !== undefined) {
+                if (s) {
+                    let x = s.xx !== undefined ? s.xx : (s.x || 0);
+                    let y = s.yy !== undefined ? s.yy : (s.y || 0);
+                    
                     ctx.fillStyle = '#00ff00';
                     ctx.beginPath();
-                    let x = 90 + (s.xx / 20);
-                    let y = 90 + (s.yy / 20);
-                    ctx.arc(Math.min(170, Math.max(10, x)), Math.min(170, Math.max(10, y)), 4, 0, Math.PI * 2);
+                    let mapX = 90 + (x / 20);
+                    let mapY = 90 + (y / 20);
+                    ctx.arc(Math.min(170, Math.max(10, mapX)), Math.min(170, Math.max(10, mapY)), 4, 0, Math.PI * 2);
                     ctx.fill();
                     
                     ctx.fillStyle = '#fff';
                     ctx.font = '8px monospace';
-                    ctx.fillText('🐍', x-3, y-4);
+                    ctx.fillText('🐍', mapX-3, mapY-4);
                 }
                 requestAnimationFrame(updateMap);
             }
@@ -121,11 +132,15 @@
         
         if (s) {
             if (hackStates.speed) {
-                if (originalSpeed === null) originalSpeed = s.spd || 10;
-                s.spd = originalSpeed * speedMultiplier;
+                if (originalSpeed === null) {
+                    originalSpeed = s.spd !== undefined ? s.spd : (s.speed || 10);
+                }
+                if (s.spd !== undefined) s.spd = originalSpeed * speedMultiplier;
+                if (s.speed !== undefined) s.speed = originalSpeed * speedMultiplier;
                 console.log(`⚡ SPEED HACK AKTIVIERT (${speedMultiplier}x)`);
             } else {
-                if (originalSpeed) s.spd = originalSpeed;
+                if (s.spd !== undefined && originalSpeed) s.spd = originalSpeed;
+                if (s.speed !== undefined && originalSpeed) s.speed = originalSpeed;
                 console.log('⚡ SPEED HACK DEAKTIVIERT');
             }
         } else {
@@ -140,8 +155,10 @@
             speedMultiplier = parseFloat(newSpeed);
             if (hackStates.speed) {
                 let s = getSnake();
-                if (s && originalSpeed) {
-                    s.spd = originalSpeed * speedMultiplier;
+                if (s) {
+                    let currentSpeed = originalSpeed || 10;
+                    if (s.spd !== undefined) s.spd = currentSpeed * speedMultiplier;
+                    if (s.speed !== undefined) s.speed = currentSpeed * speedMultiplier;
                 }
             }
             console.log(`⚡ Speed auf ${speedMultiplier}x gesetzt`);
@@ -154,9 +171,7 @@
         if (!s || !hackStates.autoPlay) return;
         
         // Finde nächstes Essen
-        let foods = [];
-        
-        // Versuche verschiedene globale Variablen
+        let foods = null;
         if (typeof window.foods !== 'undefined') foods = window.foods;
         if (typeof window.food !== 'undefined') foods = window.food;
         if (typeof window.f !== 'undefined') foods = window.f;
@@ -164,11 +179,15 @@
         if (foods && foods.length > 0) {
             let closest = null;
             let closestDist = Infinity;
+            let snakeX = s.xx !== undefined ? s.xx : (s.x || 0);
+            let snakeY = s.yy !== undefined ? s.yy : (s.y || 0);
             
             for (let f of foods) {
-                if (f && f.xx !== undefined && f.yy !== undefined) {
-                    let dx = f.xx - s.xx;
-                    let dy = f.yy - s.yy;
+                if (f) {
+                    let fx = f.xx !== undefined ? f.xx : (f.x || 0);
+                    let fy = f.yy !== undefined ? f.yy : (f.y || 0);
+                    let dx = fx - snakeX;
+                    let dy = fy - snakeY;
                     let dist = Math.sqrt(dx * dx + dy * dy);
                     if (dist < closestDist) {
                         closestDist = dist;
@@ -178,38 +197,42 @@
             }
             
             if (closest) {
-                let angle = Math.atan2(closest.yy - s.yy, closest.xx - s.xx);
-                s.ang = angle;
+                let fx = closest.xx !== undefined ? closest.xx : (closest.x || 0);
+                let fy = closest.yy !== undefined ? closest.yy : (closest.y || 0);
+                let angle = Math.atan2(fy - snakeY, fx - snakeX);
+                
+                if (s.ang !== undefined) s.ang = angle;
+                if (s.angle !== undefined) s.angle = angle;
                 
                 // Boosten wenn nah
                 if (closestDist < 150) {
-                    s.boost = true;
+                    if (s.boost !== undefined) s.boost = true;
                 } else {
-                    s.boost = false;
-                }
-            }
-        }
-        
-        // Vermeide andere Schlangen
-        if (typeof window.snakes !== 'undefined') {
-            for (let other of window.snakes) {
-                if (other && other !== s && other.xx !== undefined) {
-                    let dx = other.xx - s.xx;
-                    let dy = other.yy - s.yy;
-                    let dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 80) {
-                        let angle = Math.atan2(s.yy - other.yy, s.xx - other.xx);
-                        s.ang = angle;
-                    }
+                    if (s.boost !== undefined) s.boost = false;
                 }
             }
         }
         
         // Vermeide Wände
-        if (s.xx < 80) s.ang = 0;
-        if (s.xx > 1920) s.ang = Math.PI;
-        if (s.yy < 80) s.ang = Math.PI / 2;
-        if (s.yy > 1080) s.ang = -Math.PI / 2;
+        let snakeX = s.xx !== undefined ? s.xx : (s.x || 0);
+        let snakeY = s.yy !== undefined ? s.yy : (s.y || 0);
+        
+        if (snakeX < 80) {
+            if (s.ang !== undefined) s.ang = 0;
+            if (s.angle !== undefined) s.angle = 0;
+        }
+        if (snakeX > 1920) {
+            if (s.ang !== undefined) s.ang = Math.PI;
+            if (s.angle !== undefined) s.angle = Math.PI;
+        }
+        if (snakeY < 80) {
+            if (s.ang !== undefined) s.ang = Math.PI / 2;
+            if (s.angle !== undefined) s.angle = Math.PI / 2;
+        }
+        if (snakeY > 1080) {
+            if (s.ang !== undefined) s.ang = -Math.PI / 2;
+            if (s.angle !== undefined) s.angle = -Math.PI / 2;
+        }
     }
     
     function toggleAutoPlay() {
@@ -230,14 +253,14 @@
         hackStates.immortal = !hackStates.immortal;
         
         if (hackStates.immortal) {
-            // Überschreibe Kollisionserkennung
-            if (typeof window.collision !== 'undefined') {
+            // Versuche Kollisionsfunktionen zu überschreiben
+            if (typeof window.collision === 'function') {
                 window.originalCollision = window.collision;
-                window.collision = () => false;
+                window.collision = function() { return false; };
             }
-            if (typeof window.checkCollision !== 'undefined') {
+            if (typeof window.checkCollision === 'function') {
                 window.originalCheckCollision = window.checkCollision;
-                window.checkCollision = () => false;
+                window.checkCollision = function() { return false; };
             }
             console.log('💀 UNSTERBLICH AKTIVIERT');
         } else {
@@ -252,7 +275,8 @@
     function giveMass() {
         let s = getSnake();
         if (s) {
-            s.mass = 5000;
+            if (s.mass !== undefined) s.mass = 5000;
+            if (s.sz !== undefined) s.sz = 50;
             console.log('🍎 MASSE AUF 5000 GESETZT');
         } else {
             console.log('❌ Snake nicht gefunden');
@@ -262,7 +286,7 @@
     function setMass(value) {
         let s = getSnake();
         if (s) {
-            s.mass = parseInt(value);
+            if (s.mass !== undefined) s.mass = parseInt(value);
             console.log(`🍎 MASSE AUF ${value} GESETZT`);
         }
     }
@@ -270,7 +294,7 @@
     function setSize(value) {
         let s = getSnake();
         if (s) {
-            s.sz = parseFloat(value);
+            if (s.sz !== undefined) s.sz = parseFloat(value);
             console.log(`📏 GRÖSSE AUF ${value} GESETZT`);
         }
     }
@@ -403,22 +427,6 @@
         nameTag.onclick = showInfoBox;
         content.appendChild(nameTag);
         
-        let btnStyle = (active) => `
-            width: 36px;
-            height: 36px;
-            margin: 5px auto;
-            background: ${active ? '#e94560' : '#0f3460'};
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.1s;
-        `;
-        
         let btnContainer = document.createElement('div');
         btnContainer.style.cssText = `display: flex; flex-direction: column; align-items: center; gap: 5px;`;
         
@@ -435,7 +443,21 @@
             let button = document.createElement('button');
             button.id = btn.id;
             button.textContent = btn.icon;
-            button.style.cssText = btnStyle(false);
+            button.style.cssText = `
+                width: 36px;
+                height: 36px;
+                margin: 5px auto;
+                background: #0f3460;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 18px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.1s;
+            `;
             button.title = btn.title;
             button.onclick = btn.action;
             btnContainer.appendChild(button);
